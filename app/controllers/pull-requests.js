@@ -25,6 +25,7 @@ export default class PullRequestsController extends Controller {
     users = this.identifyUsers(users);
     users = shuffle(users);
     users = await this.fetchAdditionalUserDetails(users);
+    users = await this.fetchUserAvatarsAsBase64(users);
 
     this.updateContributorsList(users);
   }
@@ -71,9 +72,33 @@ export default class PullRequestsController extends Controller {
     }));
   }
 
+  async fetchUserAvatarsAsBase64(users) {
+    let userAvatarPromises = users.map((user) => {
+      return fetch(user.avatarUrl)
+        .then((res) => res.blob())
+        .then((blob) => this.convertBlobToBase64(blob));
+    });
+
+    let userAvatarResponses = await all(userAvatarPromises);
+
+    return users.map((user, index) => ({
+      ...user,
+      avatarBase64: userAvatarResponses[index],
+    }));
+  }
+
+  convertBlobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve(event.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
   updateContributorsList(users) {
     const contributorsList = users.map((user) => {
-      const { handle, profileLink, name, avatarUrl } = user;
+      const { handle, profileLink, name, avatarBase64 } = user;
       let displayName;
 
       if (name) {
@@ -82,7 +107,7 @@ export default class PullRequestsController extends Controller {
         displayName = handle;
       }
 
-      return `<span style="display: grid; grid-template-columns: 1fr 3fr; grid-gap: 0.75em;"><img src="${avatarUrl}" alt="${displayName}" style="border-radius: 0.5em; border: 1px solid #00000010;"/><div><a href="${profileLink}" rel="noopener noreferrer" target="_blank">${displayName}<br>(${handle})</a></div></span>`;
+      return `<span style="display: grid; grid-template-columns: 1fr 3fr; grid-gap: 0.75em;"><img src="${avatarBase64}" alt="${displayName}" style="border-radius: 0.5em; border: 1px solid #00000010;"/><div><a href="${profileLink}" rel="noopener noreferrer" target="_blank">${displayName}<br>(${handle})</a></div></span>`;
     });
 
     this.contributorsList = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); grid-gap: 1em;">
