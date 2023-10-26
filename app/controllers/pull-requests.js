@@ -64,11 +64,16 @@ export default class PullRequestsController extends Controller {
     });
 
     let userDataResponses = await all(userPromises);
+    const addSizeParam = (url) => {
+      const urlWithSizeParam = new URL(url);
+      urlWithSizeParam.searchParams.append('size', '100');
+      return urlWithSizeParam.href;
+    };
 
     return users.map((user, index) => ({
       ...user,
       name: userDataResponses[index].name,
-      avatarUrl: userDataResponses[index].avatar_url,
+      avatarUrl: addSizeParam(userDataResponses[index].avatar_url),
     }));
   }
 
