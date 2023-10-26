@@ -64,7 +64,7 @@ export default class PullRequestsController extends Controller {
     });
 
     let userDataResponses = await all(userPromises);
-    const addSizeParam = (url) => {
+    let addSizeParam = (url) => {
       const urlWithSizeParam = new URL(url);
       urlWithSizeParam.searchParams.append('size', '100');
       return urlWithSizeParam.href;
@@ -78,10 +78,18 @@ export default class PullRequestsController extends Controller {
   }
 
   async fetchUserAvatarsAsBase64(users) {
+    let convertBlobToBase64 = (blob) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    };
     let userAvatarPromises = users.map((user) => {
       return fetch(user.avatarUrl)
         .then((res) => res.blob())
-        .then((blob) => this.convertBlobToBase64(blob));
+        .then((blob) => convertBlobToBase64(blob));
     });
 
     let userAvatarResponses = await all(userAvatarPromises);
@@ -90,15 +98,6 @@ export default class PullRequestsController extends Controller {
       ...user,
       avatarBase64: userAvatarResponses[index],
     }));
-  }
-
-  convertBlobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => resolve(event.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
   }
 
   updateContributorsList(users) {
